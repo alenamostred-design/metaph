@@ -4,39 +4,99 @@ import google.generativeai as genai
 from flask import Flask
 from threading import Thread
 
-# Настройка ключей
+# Твои ключи
 TELEGRAM_TOKEN = "8764681262:AAF5s3BIk_5Um0KHwt1zM1-rHK2gtHoDmcs"
 GEMINI_API_KEY = "AQ.Ab8RN6JqwAt4BCKLIqXBTyWWc_e4eUGWyets2m3rFQT5aGH-QQ"
 
-# Инициализация
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+# Настройка Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash',
+    system_instruction=(
+        "Ты — профессиональный психотерапевт, гипнолог и мастер терапевтических метафор. "
+        "Твоя задача — написать глубокую, красивую, исцеляющую психологическую метафору по запросу пользователя. "
+        "Используй его имя, его образ проблемы и телесный зажим. "
+        "Текст должен быть гипнотическим, расслабляющим, метафоричным, возвращающим контакт с телом и выводящим в ресурсное состояние. "
+        "В конце метафоры сделай мягкий экологичный переход к тому, что для глубоких жизненных кризисов "
+        "и переписки сценариев всегда можно обратиться на личный разбор/медиацию к автору проекта — Татьяне."
+    )
+)
 
-# Блок для удержания порта (чтобы Render не выключал бота)
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
+
+# Временное хранилище для ответов пользователей
+user_data = {}
+
+# Вопросы для воронки
+QUESTIONS = [
+    "Привет! Давай создадим твою личную терапевтическую метафору. Как мне к тебе обращаться? (Напиши свое имя)",
+    "Какая эмоция, страх или мысль не дает тебе спокойно выдохнуть прямо сейчас?",
+    "Где в теле сильнее всего чувствуется это напряжение? (Например: ком в горле, тяжесть в груди, зажим в плечах)",
+    "Если бы твоя проблема была образом, предметом или стихией — как бы она выглядела?",
+    "Какое состояние ты хочешь чувствовать вместо этого, когда пройдешь эту практику?"
+]
 
 @app.route('/')
 def home():
-    return "Бот работает!"
+    return "Метафора Силы в сети!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# Логика бота
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    try:
-        response = model.generate_content(message.text)
-        bot.reply_to(message, response.text)
-    except Exception as e:
-        bot.reply_to(message, "Произошла ошибка при обработке запроса.")
+# Старт опроса
+@bot.message_handler(commands=['start'])
+def start_quiz(message):
+    chat_id = message.chat.id
+    user_data[chat_id] = {'step': 0, 'answers': []}
+    bot.send_message(chat_id, QUESTIONS[0])
 
-# Запуск
+# Обработка ответов
+@bot.message_handler(func=lambda message: True)
+def handle_quiz(message):
+    chat_id = message.chat.id
+    
+    # Если пользователь не нажал /start, но пишет
+    if chat_id not in user_data:
+        start_quiz(message)
+        return
+
+    state = user_data[chat_id]
+    step = state['step']
+    
+    # Сохраняем ответ
+    state['answers'].append(message.text)
+    step += 1
+    state['step'] = step
+
+    # Если есть следующий вопрос — задаем его
+    if step < len(QUESTIONS):
+        bot.send_message(chat_id, QUESTIONS[step])
+    else:
+        # Все вопросы заданы, формируем промпт для Gemini
+        bot.send_message(chat_id, "Спасибо. Твоя история принята. Я создаю твою личную метафору силы, это займет около 10 секунд...")
+        
+        name, emotion, body, image, target = state['answers']
+        
+        prompt = (
+            f"Создай именную метафору для пользователя по имени {name}. "
+            f"Текущая проблема/эмоция: {emotion}. "
+            f"Ощущение в теле: {body}. "
+            f"Образ проблемы: {image}. "
+            f"Желаемое состояние в финале: {target}."
+        )
+        
+        try:
+            response = model.generate_content(prompt)
+            bot.send_message(chat_id, response.text)
+        except Exception:
+            bot.send_message(chat_id, "Извини, произошел сбой при создании метафоры. Пожалуйста, попробуй позже или напиши Татьяне напрямую.")
+        
+        # Очищаем данные пользователя после генерации
+        del user_data[chat_id]
+
 if __name__ == '__main__':
-    # Запускаем веб-сервер в отдельном потоке
     t = Thread(target=run_web)
     t.start()
-    # Запускаем бота
     bot.infinity_polling()
