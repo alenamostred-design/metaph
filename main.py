@@ -57,7 +57,6 @@ def handle_quiz(message):
         
         name, emotion, body, image, target = state['answers']
         
-        # Системная инструкция для Gemini
         system_instruction = (
             "Ты — профессиональный психотерапевт, гипнолог и мастер терапевтических метафор. "
             "Твоя задача — написать глубокую, красивую, исцеляющую психологическую метафору по запросу пользователя. "
@@ -76,9 +75,15 @@ def handle_quiz(message):
             f"Желаемое состояние в финале: {target}."
         )
         
-        # Прямой HTTP-запрос к API Gemini, который принимает любые типы ключей
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-        headers = {'Content-Type': 'application/json'}
+        # Чистый URL для генерации контента
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+        
+        # Специальный формат заголовков для авторизации ключей типа AQ.
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GEMINI_API_KEY
+        }
+        
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
