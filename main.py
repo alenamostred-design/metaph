@@ -1,30 +1,27 @@
-import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-import google.generativeai as genai
+import os
+from flask import Flask
+from threading import Thread
+import telebot # Или твоя библиотека для бота
 
-# Твои ключи установлены
-TELEGRAM_TOKEN = "8764681262:AAF5s3BIk_5Um0KHwt1zM1-rHK2gtHoDmcs"
-GOOGLE_API_KEY = "AQ.Ab8RN6JqwAt4BCKLIqXBTyWWc_e4eUGWyets2m3rFQT5aGH-QQ"
+# --- НАСТРОЙКА ВЕБ-СЕРВЕРА (чтобы Render не отключал бота) ---
+app = Flask('')
 
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+@app.route('/')
+def home():
+    return "Бот активен и работает!"
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Привет! Я твой бот-метафора. О чем ты хочешь сегодня подумать?')
+def run_web():
+    app.run(host='0.0.0.0', port=8080)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
-    try:
-        response = model.generate_content(f"Ты терапевтичный бот. Ответь на это сообщение клиента через метафору: {user_text}")
-        await update.message.reply_text(response.text)
-    except Exception as e:
-        await update.message.reply_text("Прости, произошла маленькая ошибка. Попробуй еще раз.")
+# Запускаем веб-сервер в отдельном потоке
+web_thread = Thread(target=run_web)
+web_thread.start()
 
-if __name__ == '__main__':
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    
-    application.run_polling()
+# --- ЗДЕСЬ ТВОЙ КОД БОТА ---
+# Вставь сюда всё, что у тебя было (инициализацию бота и команды)
+# Например:
+# bot = telebot.TeleBot("ТВОЙ_ТОКЕН")
+# @bot.message_handler(commands=['start'])
+# def send_welcome(message):
+#     bot.reply_to(message, "Привет!")
+# bot.infinity_polling()
