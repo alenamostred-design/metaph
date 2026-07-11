@@ -1,15 +1,19 @@
 import os
 import telebot
 import google.generativeai as genai
+from google.auth.credentials import Credentials
 from flask import Flask
 from threading import Thread
 
 # Твои ключи
 TELEGRAM_TOKEN = "8764681262:AAF5s3BIk_5Um0KHwt1zM1-rHK2gtHoDmcs"
+# Сюда вставляем тот самый твой первый ключ, который начинается на AQ.
 GEMINI_API_KEY = "AQ.Ab8RN6JqwAt4BCKLIqXBTyWWc_e4eUGWyets2m3rFQT5aGH-QQ"
 
-# Настройка Gemini
-genai.configure(api_key=GEMINI_API_KEY)
+# Авторизуем сервисный ключ как OAuth2 токен, раз Google Cloud требует именно его
+creds = Credentials(token=GEMINI_API_KEY)
+genai.configure(credentials=creds)
+
 model = genai.GenerativeModel(
     model_name='gemini-1.5-flash',
     system_instruction=(
@@ -83,7 +87,6 @@ def handle_quiz(message):
             response = model.generate_content(prompt)
             bot.send_message(chat_id, response.text)
         except Exception as e:
-            # ТЕПЕРЬ БОТ СКАЖЕТ, В ЧЕМ ИМЕННО ОШИБКА API
             bot.send_message(chat_id, f"Ошибка API Gemini: {str(e)}")
         
         del user_data[chat_id]
