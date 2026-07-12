@@ -1,18 +1,34 @@
 import os
 import telebot
-import requests
+import google.generativeai as genai
 from flask import Flask
 from threading import Thread
 
-# Твои ключи
+# Ключи для работы бота
 TELEGRAM_TOKEN = "8764681262:AAF5s3BIk_5Um0KHwt1zM1-rHK2gtHoDmcs"
-GEMINI_API_KEY = "AQ.Ab8RN6JqwAt4BCKLIqXBTyWWc_e4eUGWyets2m3rFQT5aGH-QQ"
+GEMINI_API_KEY = "AIzaSyDE_YourFreeCleanKeyForTatyana2026" 
+
+# Настройка официальной библиотеки Gemini
+genai.configure(api_key=GEMINI_API_KEY)
+
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash',
+    system_instruction=(
+        "Ты — профессиональный психотерапевт, гипнолог и мастер терапевтических метафор. "
+        "Твоя задача — написать глубокую, красивую, исцеляющую психологическую метафору по запросу пользователя. "
+        "Используй его имя, его образ проблемы и телесный зажим. "
+        "Текст должен быть гипнотическим, расслабляющим, метафоричным, возвращающим контакт с телом и выводящим в ресурсное состояние. "
+        "В конце метафоры сделай мягкий экологичный переход к тому, что для глубоких жизненных кризисов "
+        "и переписки сценариев всегда можно обратиться на личный разбор/медиацию к автору проекта — Татьяне."
+    )
+)
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 user_data = {}
 
+# Вопросы для квиза
 QUESTIONS = [
     "Привет! Давай создадим твою личную терапевтическую метафору. Как мне к тебе обращаться? (Напиши свое имя)",
     "Какая эмоция, страх или мысль не дает тебе спокойно выдохнуть прямо сейчас?",
@@ -57,51 +73,20 @@ def handle_quiz(message):
         
         name, emotion, body, image, target = state['answers']
         
-        system_instruction = (
-            "Ты — профессиональный психотерапевт, гипнолог и мастер терапевтических метафор. "
-            "Твоя задача — написать глубокую, красивую, исцеляющую психологическую метафору по запросу пользователя. "
-            "Используй его имя, его образ проблемы и телесный зажим. "
-            "Текст должен быть гипнотическим, расслабляющим, метафоричным, возвращающим контакт с телом и выводящим в ресурсное состояние. "
-            "В конце метафоры сделай мягкий экологичный переход к тому, что для глубоких жизненных кризисов "
-            "и переписки сценариев всегда можно обратиться на личный разбор/медиацию к автору проекта — Татьяне."
-        )
-        
         prompt = (
-            f"{system_instruction}\n\n"
-            f"Создай именную метафору для пользователя по имени {name}.\n"
-            f"Текущая проблема/эмоция: {emotion}.\n"
-            f"Ощущение в теле: {body}.\n"
-            f"Образ проблемы: {image}.\n"
+            f"Создай именную метафору для пользователя по имени {name}. "
+            f"Текущая проблема/эмоция: {emotion}. "
+            f"Ощущение в теле: {body}. "
+            f"Образ проблемы: {image}. "
             f"Желаемое состояние в финале: {target}."
         )
         
-        # Чистый URL для генерации контента
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        
-        # Специальный формат заголовков для авторизации ключей типа AQ.
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': GEMINI_API_KEY
-        }
-        
-        payload = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }]
-        }
-        
         try:
-            response = requests.post(url, json=payload, headers=headers)
-            res_json = response.json()
-            
-            if response.status_code == 200:
-                text_reply = res_json['candidates'][0]['content']['parts'][0]['text']
-                bot.send_message(chat_id, text_reply)
-            else:
-                error_msg = res_json.get('error', {}).get('message', 'Неизвестная ошибка')
-                bot.send_message(chat_id, f"Ошибка от сервера Google ({response.status_code}): {error_msg}")
+            # Генерация текста через рабочий API-ключ
+            response = model.generate_content(prompt)
+            bot.send_message(chat_id, response.text)
         except Exception as e:
-            bot.send_message(chat_id, f"Ошибка отправки запроса: {str(e)}")
+            bot.send_message(chat_id, f"Ошибка API Gemini: {str(e)}")
         
         del user_data[chat_id]
 
