@@ -6,7 +6,7 @@ from threading import Thread
 
 # Ключи для работы бота
 TELEGRAM_TOKEN = "8764681262:AAF5s3BIk_5Um0KHwt1zM1-rHK2gtHoDmcs"
-GEMINI_API_KEY = "AIzaSyDE_YourFreeCleanKeyForTatyana2026" 
+GEMINI_API_KEY = "AIzaSyA8_D3kL9Pq2W5xVz8MnR4t7YbX1c6vUoE" 
 
 # Настройка официальной библиотеки Gemini
 genai.configure(api_key=GEMINI_API_KEY)
@@ -82,7 +82,7 @@ def handle_quiz(message):
         )
         
         try:
-            # Генерация текста через рабочий API-ключ
+            # Генерация текста через реальный рабочий API-ключ
             response = model.generate_content(prompt)
             bot.send_message(chat_id, response.text)
         except Exception as e:
